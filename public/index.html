@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kobra Follow</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#090e19;color:white;font-family:Arial}
+header{background:#121d30;padding:23px;text-align:center}
+h1{color:#00e5a0;margin:0}
+main{max-width:600px;margin:auto;padding:16px}
+.card{background:#172238;padding:20px;border-radius:16px;margin:15px 0}
+h2{color:#00e5a0;font-size:20px}
+input,select,button{width:100%;padding:14px;margin:7px 0;border:0;border-radius:9px;font-size:16px}
+input,select{background:#293750;color:white}
+button{background:#00d69a;color:#07150f;font-weight:bold}
+.secondary{background:#34445e;color:white}
+.hidden{display:none}
+.balance{font-size:32px;color:#00e5a0;font-weight:bold}
+.msg{color:#ffc66b}
+.item{padding:12px;border-bottom:1px solid #34445e}
+</style>
+</head>
+<body>
+<header>
+<h1>🐍 KOBRA FOLLOW</h1>
+<p>منصة إدارة الحملات والمهام</p>
+</header>
+<main>
+<section id="auth">
+<div class="card">
+<h2>مرحباً بك في Kobra Follow</h2>
+<input id="username" placeholder="اسم المستخدم">
+<input id="password" type="password" placeholder="كلمة المرور">
+<button onclick="register()">إنشاء حساب جديد</button>
+<button class="secondary" onclick="login()">تسجيل الدخول</button>
+<p id="authMsg" class="msg"></p>
+</div>
+</section>
+
+<section id="dashboard" class="hidden">
+<div class="card">
+<h2>أهلاً بك <span id="name"></span></h2>
+<p>رصيدك الحالي</p>
+<div class="balance" id="coins">0</div>
+<button onclick="wallet()">تحديث المحفظة</button>
+<button class="secondary" onclick="logout()">تسجيل الخروج</button>
+</div>
+
+<div class="card hidden" id="adminPanel">
+<h2>🐍 لوحة المدير</h2>
+<p>مراجعة المهام المرسلة من المستخدمين</p>
+<div id="adminSubmissions">جاري تحميل المهام...</div>
+<button class="secondary" onclick="loadAdminSubmissions()">تحديث المراجعة</button>
+</div>
+
+<div class="card">
+<h2>المهام المتاحة</h2>
+<div id="tasks">جاري التحميل...</div>
+<h2>مهامي المرسلة</h2>
+<div id="submissions">لا توجد مهام مرسلة</div>
+</div>
+
+<div class="card">
+<h2>طلب حملة جديدة</h2>
+<select id="platform">
+<option value="instagram">Instagram</option>
+<option value="tiktok">TikTok</option>
+</select>
+<select id="type">
+<option value="followers_campaign">حملة متابعين</option>
+<option value="likes_campaign">حملة إعجابات</option>
+</select>
+<input id="handle" placeholder="اسم الحساب العام">
+<input id="quantity" type="number" min="1" max="10000" placeholder="الكمية">
+<button onclick="sendRequest()">تسجيل الطلب</button>
+<p id="requestMsg" class="msg"></p>
+</div>
+
+<div class="card">
+<h2>طلباتي</h2>
+<div id="requests">لا توجد طلبات محملة</div>
+<button class="secondary" onclick="loadRequests()">تحديث الطلبات</button>
+</div>
+</section>
+</main>
+<script>
+let token=localStorage.getItem('kobra_token');
+
+async function api(path,method='GET',data=null){
+ const options={method,headers:{}};
+ if(token)options.headers.Authorization='Bearer '+token;
+ if(data){
+  options.headers['Content-Type']='application/json';
+  options.body=JSON.stringify(data);
+ }
+ const response=await fetch(path,options);
+ const result=await response.json();
+ if(!response.ok)throw Error(result.error||'حدث خطأ');
+ return result;
+}
+
+function showDashboard(user){
+ document.getElementById('auth').classList.add('hidden');
+ document.getElementById('dashboard').classList.remove('hidden');
+ document.getElementById('name').textContent=user.username;
+ document.getElementById('coins').textContent=user.coins;
+ loadTasks();
+ loadSubmissions();
+ loadRequests();
+ const isAdmin = user.role === 'admin';
+ document.getElementById('adminPanel').classList.toggle('hidden', !isAdmin);
+ if (isAdmin) loadAdminSubmissions();
+}
+
+async function register(){
+ try{
+  const result=await api('/api/register','POST',{
+   username:document.getElementById('username').value,
+   password:document.getElementById('password').value
+  });
+  token=result.token;
+  localStorage.setItem('kobra_token',token);
+  showDashboard(result.user);
+ }catch(e){document.getElementById('authMsg').textContent=e.message}
+}
+
+async function login(){
+ try{
+  const result=await api('/api/login','POST',{
+   username:document.getElementById('username').value,
+   password:document.getElementById('password').value
+  });
+  token=result.token;
+  localStorage.setItem('kobra_token',token);
+  showDashboard(result.user);
+ }catch(e){document.getElementById('authMsg').textContent=e.message}
+}
+
+async function wallet(){
+ try{
+  const user=await api('/api/wallet');
+  document.getElementById('coins').textContent=user.coins;
+ }catch(e){alert(e.message)}
+}
+
+async function loadTasks(){
+ try{
+  const tasks=await api('/api/tasks');
+  document.getElementById('tasks').innerHTML=tasks.length?
+   tasks.map(t=>`
+    <div class="item">
+     <strong>${escapeHTML(t.title)}</strong>
+     <p>${t.reward} نقطة — ${escapeHTML(t.platform)}</p>
+     <button onclick="submitTask(${t.id})">إرسال للمراجعة</button>
+    </div>
+   `).join(''):
+   'لا توجد مهام متاحة حالياً';
+ }catch(e){document.getElementById('tasks').textContent=e.message}
+}
+
+async function submitTask(id){
+ try{
+  const result=await api('/api/tasks/'+id+'/submit','POST');
+  alert(result.message);
+  loadSubmissions();
+ }catch(e){alert(e.message)}
+}
+
+async function loadSubmissions(){
+ try{
+  const list=await api('/api/task-submissions');
+  const labels={
+   pending:'قيد المراجعة',
+   approved:'تم الاعتماد',
+   rejected:'مرفوضة'
+  };
+  document.getElementById('submissions').innerHTML=list.length?
+   list.map(s=>`
+    <div class="item">
+     ${escapeHTML(s.title)} — ${s.reward} نقطة
+     <p>الحالة: ${labels[s.status] || 'غير معروفة'}</p>
+    </div>
+   `).join(''):
+   'لم ترسل أي مهام حتى الآن';
+ }catch(e){document.getElementById('submissions').textContent=e.message}
+}
+
+async function loadAdminSubmissions(){
+ const area = document.getElementById('adminSubmissions');
+ try{
+  const list = await api('/api/admin/submissions');
+  const labels = {
+   pending:'قيد المراجعة',
+   approved:'تم الاعتماد',
+   rejected:'مرفوضة'
+  };
+
+  area.innerHTML = list.length ? list.map(s => `
+   <div class="item">
+    <strong>${escapeHTML(s.title)}</strong>
+    <p>المستخدم: ${escapeHTML(s.username)}</p>
+    <p>المنصة: ${escapeHTML(s.platform)}</p>
+    <p>المكافأة: ${Number(s.reward)} نقطة</p>
+    <p>الحالة: ${labels[s.status] || 'غير معروفة'}</p>
+    ${s.status === 'pending' ? `
+     <button onclick="reviewSubmission(${Number(s.id)}, 'approve')">قبول وصرف النقاط</button>
+     <button class="secondary" onclick="reviewSubmission(${Number(s.id)}, 'reject')">رفض المهمة</button>
+    ` : ''}
+   </div>
+  `).join('') : 'لا توجد مهام مرسلة حتى الآن';
+ }catch(e){
+  area.textContent = e.message;
+ }
+}
+
+async function reviewSubmission(id, action){
+ const message = action === 'approve'
+  ? 'هل أنت متأكد من اعتماد المهمة وصرف مكافأتها؟'
+  : 'هل أنت متأكد من رفض المهمة؟';
+
+ if (!confirm(message)) return;
+
+ try{
+  const result = await api(
+   '/api/admin/submissions/' + id + '/' + action,
+   'POST'
+  );
+  alert(result.message);
+  await loadAdminSubmissions();
+  await loadSubmissions();
+  await wallet();
+ }catch(e){
+  alert(e.message);
+  await loadAdminSubmissions();
+ }
+}
+
+async function sendRequest(){
+ try{
+  const result=await api('/api/requests','POST',{
+   platform:document.getElementById('platform').value,
+   requestType:document.getElementById('type').value,
+   targetHandle:document.getElementById('handle').value,
+   quantity:Number(document.getElementById('quantity').value)
+  });
+  document.getElementById('requestMsg').textContent='تم تسجيل الطلب رقم '+result.id;
+  loadRequests();
+ }catch(e){document.getElementById('requestMsg').textContent=e.message}
+}
+
+async function loadRequests(){
+ try{
+  const list=await api('/api/requests');
+  document.getElementById('requests').innerHTML=list.length?
+   list.map(r=>`<div class="item">${escapeHTML(r.target_handle)} — ${r.platform} — ${r.status}</div>`).join(''):
+   'لا توجد طلبات حتى الآن';
+ }catch(e){document.getElementById('requests').textContent=e.message}
+}
+
+function escapeHTML(value){
+ return String(value).replace(/[&<>"']/g,c=>({
+ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+ }[c]));
+}
+
+async function logout(){
+ try{await api('/api/logout','POST')}catch(e){}
+ token=null;
+ localStorage.removeItem('kobra_token');
+ document.getElementById('dashboard').classList.add('hidden');
+ document.getElementById('auth').classList.remove('hidden');
+}
+
+async function restore(){
+ if(!token)return;
+ try{
+  const user=await api('/api/me');
+  showDashboard(user);
+ }catch(e){
+  token=null;
+  localStorage.removeItem('kobra_token');
+ }
+}
+restore();
+</script>
+</body>
+</html>
