@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kobra Follow</string>
+    <string name="title_activity_main">Kobra Follow</string>
+    <string name="package_name">com.kobra.follow</string>
+    <string name="custom_url_scheme">com.kobra.follow</string>
+</resources>

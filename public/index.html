@@ -56,6 +56,17 @@ button{background:#00d69a;color:#07150f;font-weight:bold}
 </div>
 
 <div class="card">
+
+<div class="card" id="autoRunPanel">
+<h2>🐍 KOBRA AUTO-RUN</h2>
+<p>إدارة قائمة المهام تلقائياً</p>
+<div class="balance" id="autoRunStatus" style="font-size:20px">متوقف</div>
+<div id="autoRunTask">اضغط Start لعرض المهام</div>
+<button onclick="startAutoRun()">▶ Start</button>
+<button class="secondary" onclick="pauseAutoRun()">Ⅱ Pause</button>
+<p id="autoRunMessage" class="msg"></p>
+</div>
+
 <h2>المهام المتاحة</h2>
 <div id="tasks">جاري التحميل...</div>
 <h2>مهامي المرسلة</h2>
@@ -143,6 +154,69 @@ async function wallet(){
   const user=await api('/api/wallet');
   document.getElementById('coins').textContent=user.coins;
  }catch(e){alert(e.message)}
+}
+
+
+let autoRunTasks = [];
+let autoRunRunning = false;
+
+async function startAutoRun(){
+ try {
+  const [tasks, submissions] = await Promise.all([
+   api('/api/tasks'),
+   api('/api/task-submissions')
+  ]);
+  const sent = new Set(submissions.map(s => Number(s.task_id)));
+  autoRunTasks = tasks.filter(t => !sent.has(Number(t.id)));
+  autoRunRunning = true;
+  renderAutoRun();
+ } catch(e) {
+  document.getElementById('autoRunMessage').textContent = e.message;
+ }
+}
+
+function pauseAutoRun(){
+ autoRunRunning = false;
+ renderAutoRun();
+}
+
+function renderAutoRun(){
+ document.getElementById('autoRunStatus').textContent =
+  autoRunRunning ? '● يعمل' : 'متوقف مؤقتاً';
+
+ const area = document.getElementById('autoRunTask');
+
+ if(!autoRunTasks.length){
+  area.textContent = 'لا توجد مهام جديدة حالياً';
+  return;
+ }
+
+ if(!autoRunRunning){
+  area.textContent = 'مهام في الانتظار: ' + autoRunTasks.length;
+  return;
+ }
+
+ const t = autoRunTasks[0];
+ area.innerHTML = '<div class="item"><strong>' +
+  escapeHTML(t.title) + '</strong><p>' +
+  Number(t.reward) + ' نقطة</p><p>نفذ المهمة بنفسك ثم أرسلها للمراجعة.</p>' +
+  '<button onclick="completeAutoTask(' + Number(t.id) +
+  ')">إرسال للمراجعة</button></div>';
+}
+
+async function completeAutoTask(id){
+ if(!autoRunRunning) return;
+ if(!confirm('هل نفذت المهمة بنفسك؟')) return;
+
+ try {
+  const result = await api('/api/tasks/' + id + '/submit','POST');
+  alert(result.message || 'تم الإرسال للمراجعة');
+  autoRunTasks = autoRunTasks.filter(t => Number(t.id) !== Number(id));
+  renderAutoRun();
+  loadSubmissions();
+ } catch(e) {
+  alert(e.message);
+ }
 }
 
 async function loadTasks(){

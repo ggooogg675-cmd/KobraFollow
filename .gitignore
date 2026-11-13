@@ -5,3 +5,17 @@ node_modules/
 *.db-wal
 *.backup*
 *.bak
+
+# Private environment files
+.env*
+.en
+.eno
+
+# Local build and test files
+kobra-ui-check.js
+
+# Android signing secrets
+android/local.properties
+*.jks
+*.keystore
+key.properties
