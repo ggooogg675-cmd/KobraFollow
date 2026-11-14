@@ -528,6 +528,8 @@ app.post('/api/admin/submissions/:id/reject', auth, adminOnly,
   })
 );
 
+app.get('/', (_req, res) => res.redirect('/index.html'));
+
 app.use(express.static('public'));
 
 app.use((error, _req, res, _next) => {
