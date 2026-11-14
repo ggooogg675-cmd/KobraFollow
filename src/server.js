@@ -540,8 +540,11 @@ app.use((error, _req, res, _next) => {
   });
 });
 
-const port = Number(process.env.PORT || 3000);
+module.exports = app;
 
-app.listen(port, () => {
-  console.log(`Kobra Follow API listening on ${port}`);
-});
+if (require.main === module) {
+  const port = Number(process.env.PORT || 3000);
+  app.listen(port, () => {
+    console.log(`Kobra Follow API listening on ${port}`);
+  });
+}
