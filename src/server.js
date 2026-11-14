@@ -9,7 +9,7 @@ const db = require('./db');
 const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: process.env.CORS_ORIGIN || false }));
+app.use(cors());
 app.use(express.json({ limit: '32kb' }));
 
 const platforms = new Set(['instagram', 'tiktok']);

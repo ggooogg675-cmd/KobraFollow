@@ -106,7 +106,7 @@ async function api(path,method='GET',data=null){
   options.headers['Content-Type']='application/json';
   options.body=JSON.stringify(data);
  }
- const response=await fetch(path,options);
+ const response=await fetch('https://kobra-follow.vercel.app'+path,options);
  const result=await response.json();
  if(!response.ok)throw Error(result.error||'حدث خطأ');
  return result;
