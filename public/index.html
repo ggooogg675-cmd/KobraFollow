@@ -106,7 +106,13 @@ async function api(path,method='GET',data=null){
   options.headers['Content-Type']='application/json';
   options.body=JSON.stringify(data);
  }
- const response=await fetch('https://kobra-follow.vercel.app'+path,options);
+ const url='https://kobra-follow.vercel.app'+path;
+ const response=await fetch(url,options);
+ const contentType=response.headers.get('content-type')||'';
+ if(!contentType.includes('application/json')){
+  const body=await response.text();
+  throw Error('السيرفر رجّع رد غير JSON. المسار: '+path+' | الحالة: '+response.status+' | الرد: '+body.slice(0,100));
+ }
  const result=await response.json();
  if(!response.ok)throw Error(result.error||'حدث خطأ');
  return result;
